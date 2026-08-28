@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}{{ resource.title }} — EduDrive{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+  <div class="lg:col-span-2 space-y-6">
+
+    <div class="glass rounded-2xl p-6">
+      <span class="text-xs font-semibold px-3 py-1 rounded-full bg-brand-100 dark:bg-brand-700/30 text-brand-700 dark:text-brand-300">
+        {{ resource.category.name }}
+      </span>
+      <h1 class="text-3xl font-extrabold mt-3 mb-2">{{ resource.title }}</h1>
+      <p class="text-gray-500 dark:text-gray-400 mb-4">{{ resource.description }}</p>
+
+      <div class="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-6">
+        <span class="flex items-center gap-1"><i data-lucide="user" class="w-4 h-4"></i> {{ resource.uploaded_by.username }}</span>
+        <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i> {{ resource.created_at|date:"d.m.Y" }}</span>
+        <span class="flex items-center gap-1"><i data-lucide="download" class="w-4 h-4"></i> {{ resource.download_count }} marta yuklangan</span>
+        <span class="flex items-center gap-1"><i data-lucide="star" class="w-4 h-4 text-yellow-500"></i> {{ resource.average_rating }} ({{ resource.reviews_count }} sharh)</span>
+      </div>
+
+      <div class="flex flex-wrap gap-3">
+        {% if resource.has_demo_preview %}
+        <button id="demo-preview-btn"
+           class="flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold transition">
+          <i data-lucide="eye" class="w-5 h-5"></i> Demo ko'rish
+        </button>
+        {% endif %}
+        <a href="{% url 'resource_download' resource.slug %}"
+           class="flex items-center gap-2 px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold transition">
+          <i data-lucide="download" class="w-5 h-5"></i> Yuklab olish
+        </a>
+        {% if user.is_authenticated %}
+        <button id="bookmark-btn" data-slug="{{ resource.slug }}"
+          class="flex items-center gap-2 px-6 py-3 rounded-xl glass hover:bg-brand-50 dark:hover:bg-gray-800 font-semibold transition">
+          <i data-lucide="bookmark" class="w-5 h-5 {% if user_has_bookmarked %}fill-brand-600 text-brand-600{% endif %}"></i>
+          <span>{% if user_has_bookmarked %}Saqlangan{% else %}Saqlash{% endif %}</span>
+        </button>
+        {% endif %}
+      </div>
+
+      {% if resource.is_pdf and resource.preview_file %}
+      <p class="text-xs text-gray-400 mt-3 flex items-center gap-1">
+        <i data-lucide="info" class="w-3.5 h-3.5"></i>
+        Demo rejimida faqat birinchi sahifalar ko'rsatiladi. To'liq material uchun yuklab oling.
+      </p>
+      {% endif %}
+    </div>
+
+    <div class="glass rounded-2xl p-6">
+      <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <i data-lucide="message-square" class="w-5 h-5"></i> Sharhlar ({{ reviews.count }})
+      </h2>
+
+      {% if user.is_authenticated and not user_has_reviewed %}
+      <form method="post" class="mb-6 space-y-3">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Reyting bering</label>
+          <div class="star-rating flex flex-row-reverse justify-end gap-1">
+            {% for i in "54321" %}
+              <input type="radio" name="rating" value="{{ i }}" id="star-{{ i }}" required>
+              <label for="star-{{ i }}" title="{{ i }} yulduz">★</label>
+            {% endfor %}
+          </div>
+        </div>
+        {{ review_form.comment }}
+        <button type="submit" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-medium transition">
+          Sharh qoldirish
+        </button>
+      </form>
+      {% endif %}
+
+      <div class="space-y-4">
+        {% for review in reviews %}
+        <div class="border-b border-gray-200/50 dark:border-gray-700/50 pb-4">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-semibold">{{ review.user.username }}</span>
+            <span class="text-yellow-500 text-sm">{% for i in "12345" %}{% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}{% endfor %}</span>
+          </div>
+          <p class="text-sm text-gray-500 dark:text-gray-400">{{ review.comment }}</p>
+        </div>
+        {% empty %}
+        <p class="text-gray-400 text-sm">Hali sharhlar yo'q. Birinchi bo'lib fikringizni qoldiring!</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <aside class="space-y-6">
+    <div class="glass rounded-2xl p-6">
+      <h3 class="font-bold mb-3">O'xshash materiallar</h3>
+      <div class="space-y-3">
+        {% for r in related %}
+        <a href="{% url 'resource_detail' r.slug %}" class="block p-3 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 transition">
+          <p class="font-medium text-sm line-clamp-1">{{ r.title }}</p>
+          <p class="text-xs text-gray-400">{{ r.download_count }} yuklangan</p>
+        </a>
+        {% empty %}
+        <p class="text-sm text-gray-400">Hozircha o'xshash material yo'q.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </aside>
+</div>
+
+{% if resource.has_demo_preview %}
+<div id="demo-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+  <div class="glass rounded-2xl w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200/30 dark:border-gray-700/30">
+      <p class="font-semibold flex items-center gap-2"><i data-lucide="eye" class="w-4 h-4"></i> Demo ko'rish</p>
+      <button id="demo-close-btn" class="p-2 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-800/50">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <div class="flex-1 bg-gray-100 dark:bg-gray-900 overflow-auto flex items-center justify-center">
+      {% if resource.is_image %}
+        <img src="{% url 'resource_preview' resource.slug %}" class="max-w-full max-h-full object-contain" alt="{{ resource.title }}">
+      {% else %}
+        <iframe id="demo-iframe" class="w-full h-full border-0" src=""></iframe>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const demoBtn = document.getElementById('demo-preview-btn');
+  const demoModal = document.getElementById('demo-modal');
+  const demoClose = document.getElementById('demo-close-btn');
+  const demoIframe = document.getElementById('demo-iframe');
+
+  if (demoBtn) {
+    demoBtn.addEventListener('click', () => {
+      demoModal.classList.remove('hidden');
+      if (demoIframe) demoIframe.src = "{% url 'resource_preview' resource.slug %}";
+    });
+    demoClose.addEventListener('click', () => {
+      demoModal.classList.add('hidden');
+      if (demoIframe) demoIframe.src = "";
+    });
+    demoModal.addEventListener('click', (e) => {
+      if (e.target === demoModal) {
+        demoModal.classList.add('hidden');
+        if (demoIframe) demoIframe.src = "";
+      }
+    });
+  }
+
+  const bookmarkBtn = document.getElementById('bookmark-btn');
+  if (bookmarkBtn) {
+    bookmarkBtn.addEventListener('click', async () => {
+      const slug = bookmarkBtn.dataset.slug;
+      const res = await fetch(`/resource/${slug}/bookmark/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+      });
+      const data = await res.json();
+      const icon = bookmarkBtn.querySelector('i');
+      const label = bookmarkBtn.querySelector('span');
+      if (data.bookmarked) {
+        icon.classList.add('fill-brand-600', 'text-brand-600');
+        label.textContent = 'Saqlangan';
+      } else {
+        icon.classList.remove('fill-brand-600', 'text-brand-600');
+        label.textContent = 'Saqlash';
+      }
+    });
+  }
+</script>
+{% endblock %}

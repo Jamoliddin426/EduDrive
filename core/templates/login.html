@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Kirish — EduDrive{% endblock %}
+
+{% block content %}
+<div class="min-h-[75vh] flex items-center justify-center">
+  <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden glass shadow-2xl">
+
+    <!-- Chap taraf: brend / motivatsion qism -->
+    <div class="hidden md:flex flex-col justify-between p-10 bg-gradient-to-br from-brand-600 to-purple-600 text-white relative overflow-hidden">
+      <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+      <div class="absolute -bottom-16 -left-10 w-56 h-56 bg-white/10 rounded-full blur-2xl"></div>
+
+      <div class="relative z-10">
+        <div class="flex items-center gap-2 font-bold text-2xl mb-8">
+          <i data-lucide="graduation-cap" class="w-8 h-8"></i> EduDrive
+        </div>
+        <h2 class="text-3xl font-extrabold leading-snug mb-3">Bilimga qaytganingizdan xursandmiz!</h2>
+        <p class="text-white/80 text-sm">Konspektlar, darsliklar va o'quv materiallariga qayta ulaning — reytingdagi o'rningizni tekshiring va yangi materiallarni kashf eting.</p>
+      </div>
+
+      <div class="relative z-10 flex items-center gap-3 text-sm text-white/70">
+        <i data-lucide="shield-check" class="w-5 h-5"></i>
+        Ma'lumotlaringiz xavfsiz saqlanadi
+      </div>
+    </div>
+
+    <!-- O'ng taraf: forma -->
+    <div class="p-8 sm:p-10">
+      <div class="text-center mb-8">
+        <div class="w-14 h-14 rounded-2xl bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="log-in" class="w-7 h-7 text-brand-600 dark:text-brand-400"></i>
+        </div>
+        <h1 class="text-2xl font-bold">Tizimga kirish</h1>
+        <p class="text-sm text-gray-400 mt-1">Hisobingizga kirish uchun ma'lumotlaringizni kiriting</p>
+      </div>
+
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm font-medium mb-1.5 flex items-center gap-1.5">
+            <i data-lucide="user" class="w-4 h-4 text-gray-400"></i> Login
+          </label>
+          {{ form.username }}
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1.5 flex items-center gap-1.5">
+            <i data-lucide="lock" class="w-4 h-4 text-gray-400"></i> Parol
+          </label>
+          {{ form.password }}
+        </div>
+
+        {% if form.errors %}
+        <div class="flex items-center gap-2 text-red-500 text-sm bg-red-50 dark:bg-red-900/20 rounded-xl px-4 py-3">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+          Login yoki parol noto'g'ri.
+        </div>
+        {% endif %}
+
+        <button type="submit" class="w-full py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20">
+          <i data-lucide="log-in" class="w-5 h-5"></i> Kirish
+        </button>
+      </form>
+
+      <p class="text-center text-sm text-gray-500 mt-8">
+        Hisobingiz yo'qmi?
+        <a href="{% url 'register' %}" class="text-brand-600 font-semibold hover:underline">Ro'yxatdan o'ting</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

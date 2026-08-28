@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Ro'yxatdan o'tish — EduDrive{% endblock %}
+
+{% block content %}
+<div class="min-h-[75vh] flex items-center justify-center py-8">
+  <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 rounded-3xl overflow-hidden glass shadow-2xl">
+
+    <!-- Chap taraf: brend / motivatsion qism -->
+    <div class="hidden md:flex flex-col justify-between p-10 bg-gradient-to-br from-purple-600 to-brand-600 text-white relative overflow-hidden">
+      <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+      <div class="absolute -bottom-16 -left-10 w-56 h-56 bg-white/10 rounded-full blur-2xl"></div>
+
+      <div class="relative z-10">
+        <div class="flex items-center gap-2 font-bold text-2xl mb-8">
+          <i data-lucide="graduation-cap" class="w-8 h-8"></i> EduDrive
+        </div>
+        <h2 class="text-3xl font-extrabold leading-snug mb-3">Bilim olamiga xush kelibsiz!</h2>
+        <p class="text-white/80 text-sm mb-6">Bir necha soniyada ro'yxatdan o'ting va minglab konspekt, darslik va o'quv materiallariga ega bo'ling.</p>
+
+        <div class="space-y-3 text-sm">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0"><i data-lucide="upload-cloud" class="w-4 h-4"></i></div>
+            Material yuklang, ball to'plang
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0"><i data-lucide="trophy" class="w-4 h-4"></i></div>
+            Reytingda o'z o'rningizni oling
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0"><i data-lucide="send" class="w-4 h-4"></i></div>
+            Telegram bot bilan ham foydalaning
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- O'ng taraf: forma -->
+    <div class="p-8 sm:p-10">
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 rounded-2xl bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="user-plus" class="w-7 h-7 text-brand-600 dark:text-brand-400"></i>
+        </div>
+        <h1 class="text-2xl font-bold">Ro'yxatdan o'tish</h1>
+        <p class="text-sm text-gray-400 mt-1">Bir necha qadamda tayyor</p>
+      </div>
+
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        {% for field in form %}
+          <div>
+            <label class="block text-sm font-medium mb-1.5">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+              <p class="text-xs text-gray-400 mt-1">{{ field.help_text }}</p>
+            {% endif %}
+            {% for error in field.errors %}
+              <p class="flex items-center gap-1.5 text-red-500 text-xs mt-1.5">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> {{ error }}
+              </p>
+            {% endfor %}
+          </div>
+        {% endfor %}
+
+        <button type="submit" class="w-full py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20 mt-2">
+          <i data-lucide="user-plus" class="w-5 h-5"></i> Ro'yxatdan o'tish
+        </button>
+      </form>
+
+      <p class="text-center text-sm text-gray-500 mt-6">
+        Hisobingiz bormi?
+        <a href="{% url 'login' %}" class="text-brand-600 font-semibold hover:underline">Kirish</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}EduDrive — Bosh sahifa{% endblock %}
+
+{% block content %}
+<section class="text-center mb-10">
+  <h1 class="text-3xl sm:text-4xl font-extrabold mb-3 bg-gradient-to-r from-brand-600 to-purple-600 bg-clip-text text-transparent">
+    Bilimga bo'lgan yo'lingiz shu yerdan boshlanadi
+  </h1>
+  <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
+    Konspektlar, darsliklar va o'quv materiallarini toping, ulashing va reyting bering.
+  </p>
+</section>
+
+<form method="get" class="glass rounded-2xl p-4 mb-8 flex flex-col sm:flex-row gap-3">
+  <div class="relative flex-1">
+    <i data-lucide="search" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+    <input type="text" id="search-input" name="q" value="{{ query|default:'' }}" placeholder="Material qidirish..." autocomplete="off"
+      class="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+    <div id="suggestions-box" class="hidden absolute top-full left-0 right-0 mt-2 glass rounded-xl shadow-xl z-40 overflow-hidden"></div>
+  </div>
+  <select name="sort" onchange="this.form.submit()" class="w-full sm:w-auto px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70">
+    <option value="new" {% if active_sort == "new" %}selected{% endif %}>Yangi qo'shilganlar</option>
+    <option value="popular" {% if active_sort == "popular" %}selected{% endif %}>Eng ko'p yuklanganlar</option>
+    <option value="rating" {% if active_sort == "rating" %}selected{% endif %}>Eng yuqori baholanganlar</option>
+  </select>
+  <button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-medium transition">
+    Qidirish
+  </button>
+</form>
+
+<div class="flex flex-wrap gap-2 mb-10">
+  <a href="{% url 'home' %}" class="px-4 py-2 rounded-full text-sm font-medium transition
+    {% if not active_category %}bg-brand-600 text-white{% else %}glass hover:bg-brand-50 dark:hover:bg-gray-800{% endif %}">
+    Barchasi
+  </a>
+  {% for cat in categories %}
+  <a href="{% url 'category_detail' cat.slug %}" class="px-4 py-2 rounded-full text-sm font-medium transition flex items-center gap-1
+    {% if active_category == cat.slug %}bg-brand-600 text-white{% else %}glass hover:bg-brand-50 dark:hover:bg-gray-800{% endif %}">
+    <i data-lucide="{{ cat.icon }}" class="w-4 h-4"></i>
+    {{ cat.name }} <span class="opacity-60">({{ cat.resource_count }})</span>
+  </a>
+  {% endfor %}
+</div>
+
+{% if daily_resource and not query and active_sort == "new" and not category_obj %}
+<section class="mb-12">
+  <div class="glass rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-6 border-2 border-brand-400/30">
+    <div class="flex-shrink-0 w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-500 flex items-center justify-center text-white">
+      <i data-lucide="sparkles" class="w-8 h-8"></i>
+    </div>
+    <div class="flex-1 text-center sm:text-left">
+      <p class="text-xs font-bold uppercase tracking-wide text-brand-600 dark:text-brand-400 mb-1">✨ Kunning materiali</p>
+      <h3 class="font-bold text-lg mb-1">{{ daily_resource.title }}</h3>
+      <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">{{ daily_resource.description }}</p>
+    </div>
+    <a href="{% url 'resource_detail' daily_resource.slug %}"
+       class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold transition whitespace-nowrap">
+      Ko'rish →
+    </a>
+  </div>
+</section>
+{% endif %}
+
+{% if not query and top_downloaded and active_sort == "new" and not category_obj %}
+<section class="mb-12">
+  <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+    <i data-lucide="flame" class="w-5 h-5 text-orange-500"></i> Eng ko'p yuklanganlar
+  </h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {% for r in top_downloaded %}
+      {% include "_resource_card.html" with resource=r %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section>
+  <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+    <i data-lucide="layout-grid" class="w-5 h-5 text-brand-500"></i>
+    {% if category_obj %}{{ category_obj.name }}
+    {% elif query %}"{{ query }}" bo'yicha natijalar
+    {% elif active_sort == "popular" %}Eng ko'p yuklanganlar
+    {% elif active_sort == "rating" %}Eng yuqori baholangan materiallar
+    {% else %}Barcha materiallar{% endif %}
+  </h2>
+
+  <div id="results-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {% for r in page_obj %}
+      {% include "_resource_card.html" with resource=r %}
+    {% empty %}
+      <div class="col-span-full text-center py-16 text-gray-400">
+        <i data-lucide="folder-search" class="w-12 h-12 mx-auto mb-3"></i>
+        Hech qanday material topilmadi.
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="flex justify-center gap-2 mt-8">
+    {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}" class="px-4 py-2 rounded-xl glass hover:bg-brand-50 dark:hover:bg-gray-800">&laquo; Oldingi</a>
+    {% endif %}
+    <span class="px-4 py-2 rounded-xl bg-brand-600 text-white">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}" class="px-4 py-2 rounded-xl glass hover:bg-brand-50 dark:hover:bg-gray-800">Keyingi &raquo;</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const searchInput = document.getElementById('search-input');
+  const suggestionsBox = document.getElementById('suggestions-box');
+  let debounceTimer;
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const q = searchInput.value.trim();
+    if (q.length < 2) {
+      suggestionsBox.classList.add('hidden');
+      return;
+    }
+    debounceTimer = setTimeout(async () => {
+      const res = await fetch(`/api/search-suggestions/?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (!data.results.length) {
+        suggestionsBox.classList.add('hidden');
+        return;
+      }
+      suggestionsBox.innerHTML = data.results.map(r => `
+        <a href="${r.url}" class="block px-4 py-3 hover:bg-brand-50 dark:hover:bg-gray-800 transition border-b border-gray-200/30 dark:border-gray-700/30 last:border-0">
+          <p class="text-sm font-medium">${r.title}</p>
+          <p class="text-xs text-gray-400">${r.category}</p>
+        </a>
+      `).join('');
+      suggestionsBox.classList.remove('hidden');
+    }, 300);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!suggestionsBox.contains(e.target) && e.target !== searchInput) {
+      suggestionsBox.classList.add('hidden');
+    }
+  });
+</script>
+{% endblock %}

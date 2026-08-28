@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Material yuklash — EduDrive{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto glass rounded-2xl p-8">
+  <div class="text-center mb-6">
+    <i data-lucide="upload-cloud" class="w-10 h-10 mx-auto text-brand-600 mb-2"></i>
+    <h1 class="text-2xl font-bold">Yangi material yuklash</h1>
+    <p class="text-sm text-gray-400 mt-1">Material admin tomonidan tekshirilgach saytda chop etiladi.</p>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="space-y-4">
+    {% csrf_token %}
+    <div>
+      <label class="block text-sm font-medium mb-1">Sarlavha</label>
+      {{ form.title }}
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Tavsif</label>
+      {{ form.description }}
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Kategoriya</label>
+      {{ form.category }}
+
+      <div class="flex items-center gap-2 my-2">
+        <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+        <span class="text-xs text-gray-400">yoki</span>
+        <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+      </div>
+
+      {{ form.new_category }}
+      <p class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        Kerakli kategoriya ro'yxatda yo'qmi? Shu yerga yozing — avtomatik yaratiladi.
+      </p>
+      {% if form.non_field_errors %}
+        <p class="flex items-center gap-1.5 text-red-500 text-xs mt-2">
+          <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> {{ form.non_field_errors.0 }}
+        </p>
+      {% endif %}
+    </div>
+    <div id="drop-zone" class="text-center">
+      <label class="block text-sm font-medium mb-1">Fayl</label>
+      {{ form.file }}
+      <p class="text-xs text-gray-400 mt-2">PDF, DOCX, PPTX yoki rasm formatlari qo'llab-quvvatlanadi</p>
+    </div>
+
+    <button type="submit" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold transition flex items-center justify-center gap-2">
+      <i data-lucide="send" class="w-5 h-5"></i> Yuborish
+    </button>
+  </form>
+</div>
+{% endblock %}

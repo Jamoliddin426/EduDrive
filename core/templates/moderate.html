@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Moderatsiya — EduDrive{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-extrabold flex items-center gap-2">
+      <i data-lucide="shield-check" class="w-7 h-7 text-brand-600"></i> Moderatsiya paneli
+    </h1>
+    <p class="text-sm text-gray-400 mt-1">Kutilayotgan materiallarni shu yerdan tasdiqlashingiz yoki rad etishingiz mumkin.</p>
+  </div>
+  <a href="{% url 'moderation_history' %}" class="px-4 py-2 rounded-xl glass hover:bg-brand-50 dark:hover:bg-gray-800 text-sm font-medium flex items-center gap-2">
+    <i data-lucide="history" class="w-4 h-4"></i> Tarix
+  </a>
+</div>
+
+<div id="pending-list" class="space-y-4">
+  {% for r in pending_resources %}
+  <div class="glass rounded-2xl p-5" id="row-{{ r.slug }}">
+    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold px-3 py-1 rounded-full bg-brand-100 dark:bg-brand-700/30 text-brand-700 dark:text-brand-300">
+            {{ r.category.name }}
+          </span>
+          <span class="text-xs uppercase font-bold text-gray-400">{{ r.file_type|default:"FAYL" }}</span>
+          <span class="text-xs text-gray-400">· {{ r.get_uploaded_via_display }}</span>
+        </div>
+        <h3 class="font-bold text-lg mb-1">{{ r.title }}</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">{{ r.description }}</p>
+        <p class="text-xs text-gray-400 flex items-center gap-1">
+          <i data-lucide="user" class="w-3.5 h-3.5"></i> {{ r.uploaded_by.username }}
+          <span class="mx-1">·</span>
+          <i data-lucide="calendar" class="w-3.5 h-3.5"></i> {{ r.created_at|date:"d.m.Y H:i" }}
+        </p>
+        {% if r.file %}
+        <a href="{{ r.file.url }}" target="_blank" class="inline-flex items-center gap-1 text-xs text-brand-600 dark:text-brand-400 hover:underline mt-2">
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Faylni ko'rish
+        </a>
+        {% endif %}
+      </div>
+
+      <div class="flex sm:flex-col gap-2 shrink-0">
+        <button onclick="moderateAction('{{ r.slug }}', 'approve')"
+          class="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition">
+          <i data-lucide="check" class="w-4 h-4"></i> Tasdiqlash
+        </button>
+        <button onclick="openRejectModal('{{ r.slug }}')"
+          class="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition">
+          <i data-lucide="x" class="w-4 h-4"></i> Rad etish
+        </button>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="text-center py-16 text-gray-400">
+    <i data-lucide="party-popper" class="w-12 h-12 mx-auto mb-3"></i>
+    Hozircha kutilayotgan material yo'q. Hammasi tozalangan! 🎉
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Rad etish sababi uchun modal -->
+<div id="reject-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+  <div class="glass rounded-2xl w-full max-w-md p-6">
+    <h3 class="font-bold text-lg mb-4">Rad etish sababi</h3>
+    <textarea id="reject-reason" rows="3" placeholder="Sababni yozing (ixtiyoriy)..."
+      class="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70 px-4 py-3 mb-4"></textarea>
+    <div class="flex gap-3">
+      <button id="reject-cancel" class="flex-1 py-2 rounded-xl glass hover:bg-gray-100 dark:hover:bg-gray-800 font-medium">Bekor qilish</button>
+      <button id="reject-confirm" class="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold">Rad etish</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let currentRejectSlug = null;
+  const rejectModal = document.getElementById('reject-modal');
+
+  function openRejectModal(slug) {
+    currentRejectSlug = slug;
+    document.getElementById('reject-reason').value = '';
+    rejectModal.classList.remove('hidden');
+  }
+
+  document.getElementById('reject-cancel').addEventListener('click', () => {
+    rejectModal.classList.add('hidden');
+  });
+
+  document.getElementById('reject-confirm').addEventListener('click', () => {
+    const reason = document.getElementById('reject-reason').value;
+    rejectModal.classList.add('hidden');
+    moderateAction(currentRejectSlug, 'reject', reason);
+  });
+
+  async function moderateAction(slug, action, reason = '') {
+    const body = new URLSearchParams({ action });
+    if (reason) body.append('reason', reason);
+
+    const res = await fetch(`/resource/${slug}/moderate/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const row = document.getElementById(`row-${slug}`);
+
+      if (data.already_processed) {
+        // Bu material allaqachon (masalan Telegram bot orqali) ko'rib
+        // chiqilgan — foydalanuvchiga bildirib, qatorni baribir olib tashlaymiz.
+        alert("Bu material allaqachon ko'rib chiqilgan (masalan, Telegram bot orqali).");
+      }
+
+      if (row) {
+        row.style.transition = 'opacity 0.3s, transform 0.3s';
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(20px)';
+        setTimeout(() => {
+          row.remove();
+          updateAfterRemoval();
+        }, 300);
+      }
+    } else {
+      alert('Xatolik yuz berdi. Qayta urinib ko\'ring.');
+    }
+  }
+
+  function updateAfterRemoval() {
+    const list = document.getElementById('pending-list');
+    const remaining = list.querySelectorAll('[id^="row-"]').length;
+
+    // Navbardagi "Moderatsiya" belgisini jonli yangilaymiz
+    const badge = document.getElementById('moderation-badge');
+    if (badge) {
+      if (remaining > 0) {
+        badge.textContent = remaining;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    // Ro'yxat bo'shab qolsa, "hammasi tozalangan" xabarini ko'rsatamiz
+    if (remaining === 0) {
+      list.innerHTML = `
+        <div class="text-center py-16 text-gray-400">
+          <i data-lucide="party-popper" class="w-12 h-12 mx-auto mb-3"></i>
+          Hozircha kutilayotgan material yo'q. Hammasi tozalangan! 🎉
+        </div>`;
+      lucide.createIcons();
+    }
+  }
+</script>
+{% endblock %}

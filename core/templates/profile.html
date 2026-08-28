@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Profil — EduDrive{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+  <div class="glass rounded-2xl p-6 text-center h-fit">
+    <form id="avatar-form" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label for="avatar-input" class="relative inline-block cursor-pointer group">
+        <img src="{{ user_obj.avatar.url }}" class="w-24 h-24 rounded-full mx-auto object-cover border-4 border-brand-500 mb-4 transition group-hover:opacity-70" alt="avatar">
+        <span class="absolute inset-0 flex items-center justify-center mb-4 opacity-0 group-hover:opacity-100 transition">
+          <i data-lucide="camera" class="w-6 h-6 text-white drop-shadow"></i>
+        </span>
+      </label>
+      {{ edit_form.avatar }}
+    </form>
+
+    <h2 class="text-xl font-bold">{{ user_obj.username }}</h2>
+    <p class="text-sm text-gray-400 mb-1">{{ user_obj.get_role_display }}</p>
+    <p class="text-xs font-semibold text-brand-600 dark:text-brand-400 mb-4">🏆 Reytingda #{{ rank }}-o'rin</p>
+
+    {% if user_obj.bio %}
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-4 italic">"{{ user_obj.bio }}"</p>
+    {% endif %}
+
+    <button type="button" id="edit-bio-btn" class="text-xs text-brand-600 dark:text-brand-400 hover:underline mb-4">
+      {% if user_obj.bio %}Bio'ni tahrirlash{% else %}+ Bio qo'shish{% endif %}
+    </button>
+    <form id="bio-form" method="post" class="hidden text-left mb-4 space-y-2">
+      {% csrf_token %}
+      {{ edit_form.bio }}
+      <button type="submit" class="w-full py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition">
+        Saqlash
+      </button>
+    </form>
+
+    <div class="flex justify-around text-sm mb-4">
+      <div><p class="font-bold text-lg">{{ stats.total_uploads }}</p><p class="text-gray-400">Yuklamalar</p></div>
+      <div><p class="font-bold text-lg">{{ stats.total_downloads }}</p><p class="text-gray-400">Yuklab olingan</p></div>
+      <div><p class="font-bold text-lg text-yellow-500">{{ user_obj.points }}</p><p class="text-gray-400">Ball</p></div>
+    </div>
+
+    {% if not user_obj.is_telegram_linked %}
+    <div class="mt-4 p-4 rounded-xl bg-brand-50 dark:bg-brand-900/20 text-left">
+      <p class="text-sm font-semibold flex items-center gap-2 mb-2">
+        <i data-lucide="send" class="w-4 h-4"></i> Telegram hisobingizni ulang
+      </p>
+      <p class="text-xs text-gray-500 mb-2">
+        Botga o'ting va quyidagi buyruqni yuboring:
+      </p>
+      <code class="block bg-gray-900 text-green-400 text-xs px-3 py-2 rounded-lg">/link {{ otp_code }}</code>
+    </div>
+    {% else %}
+    <div class="mt-4 p-3 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-sm flex items-center gap-2 justify-center">
+      <i data-lucide="check-circle" class="w-4 h-4"></i> Telegram ulangan
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="lg:col-span-2 space-y-6">
+    <div class="glass rounded-2xl p-6">
+      <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="folder" class="w-5 h-5"></i> Mening materiallarim</h3>
+      <div class="space-y-3">
+        {% for r in user_resources %}
+        <div class="flex items-center justify-between p-3 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 transition">
+          <div>
+            <p class="font-medium text-sm">{{ r.title }}</p>
+            <p class="text-xs text-gray-400">{{ r.download_count }} yuklab olingan</p>
+          </div>
+          <span class="text-xs font-semibold px-3 py-1 rounded-full
+            {% if r.status == 'approved' %}bg-green-100 text-green-700
+            {% elif r.status == 'pending' %}bg-yellow-100 text-yellow-700
+            {% else %}bg-red-100 text-red-700{% endif %}">
+            {{ r.get_status_display }}
+          </span>
+        </div>
+        {% empty %}
+        <p class="text-sm text-gray-400">Siz hali material yuklamagansiz.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="glass rounded-2xl p-6">
+      <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="bookmark" class="w-5 h-5"></i> Saqlangan materiallar</h3>
+      <div class="space-y-3">
+        {% for b in bookmarks %}
+        <a href="{% url 'resource_detail' b.resource.slug %}" class="block p-3 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 transition text-sm font-medium">
+          {{ b.resource.title }}
+        </a>
+        {% empty %}
+        <p class="text-sm text-gray-400">Hozircha saqlangan material yo'q.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+  /* "Currently", "Clear" matnlari va keraksiz elementlarni yashirish */
+  #avatar-form label[for$="-clear_id"],
+  #avatar-form input[type="checkbox"],
+  #avatar-form a {
+    display: none !important;
+  }
+  #avatar-form {
+    font-size: 0;
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const fileInput = document.querySelector('#avatar-form input[type="file"]');
+    if (fileInput) {
+      fileInput.id = 'avatar-input';
+      fileInput.classList.add('hidden');
+
+      // Fayl tanlanganda avtomatik formani yuborish
+      fileInput.addEventListener('change', () => {
+        document.getElementById('avatar-form').submit();
+      });
+    }
+  });
+
+  const editBioBtn = document.getElementById('edit-bio-btn');
+  const bioForm = document.getElementById('bio-form');
+  editBioBtn.addEventListener('click', () => {
+    bioForm.classList.toggle('hidden');
+  });
+</script>
+{% endblock %}

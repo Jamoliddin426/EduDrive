@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Moderatsiya tarixi — EduDrive{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-extrabold flex items-center gap-2">
+    <i data-lucide="history" class="w-7 h-7 text-brand-600"></i> Moderatsiya tarixi
+  </h1>
+  <a href="{% url 'moderation_dashboard' %}" class="px-4 py-2 rounded-xl glass hover:bg-brand-50 dark:hover:bg-gray-800 text-sm font-medium flex items-center gap-2">
+    <i data-lucide="arrow-left" class="w-4 h-4"></i> Panelga qaytish
+  </a>
+</div>
+
+<div class="space-y-3">
+  {% for r in recent_resources %}
+  <div class="glass rounded-2xl p-4 flex items-center justify-between">
+    <div>
+      <p class="font-semibold">{{ r.title }}</p>
+      <p class="text-xs text-gray-400">{{ r.uploaded_by.username }} · {{ r.category.name }}</p>
+    </div>
+    <span class="text-xs font-semibold px-3 py-1 rounded-full
+      {% if r.status == 'approved' %}bg-green-100 text-green-700
+      {% else %}bg-red-100 text-red-700{% endif %}">
+      {{ r.get_status_display }}
+    </span>
+  </div>
+  {% empty %}
+  <p class="text-center text-gray-400 py-12">Hali hech narsa moderatsiya qilinmagan.</p>
+  {% endfor %}
+</div>
+{% endblock %}

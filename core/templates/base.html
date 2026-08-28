@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="uz" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}EduDrive — O'quv materiallari platformasi{% endblock %}</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            50: '#eef2ff', 100: '#e0e7ff', 400: '#818cf8',
+            500: '#6366f1', 600: '#4f46e5', 700: '#4338ca'
+          }
+        },
+        backdropBlur: { xs: '2px' }
+      }
+    }
+  }
+</script>
+<style>
+  .glass {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  .dark .glass {
+    background: rgba(17, 24, 39, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 37%, #e5e7eb 63%);
+    background-size: 400% 100%;
+    animation: skeleton-loading 1.4s ease infinite;
+  }
+  .dark .skeleton {
+    background: linear-gradient(90deg, #1f2937 25%, #374151 37%, #1f2937 63%);
+    background-size: 400% 100%;
+  }
+  @keyframes skeleton-loading {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+  }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #a5b4fc; border-radius: 8px; }
+
+  /* 5 yulduzli interaktiv reyting (radio inputlar yashirin, label'lar yulduz) */
+  .star-rating input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .star-rating label {
+    color: #d1d5db; cursor: pointer; font-size: 2rem; line-height: 1;
+    transition: color 0.15s, transform 0.1s;
+  }
+  .dark .star-rating label { color: #4b5563; }
+  .star-rating input:checked ~ label { color: #facc15; }
+  .star-rating label:hover,
+  .star-rating label:hover ~ label { color: #facc15; transform: scale(1.12); }
+</style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 min-h-screen text-gray-800 dark:text-gray-100 transition-colors duration-300 overflow-x-hidden">
+
+<nav class="glass sticky top-0 z-50 shadow-sm">
+  <div class="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-y-2">
+    <a href="{% url 'home' %}" class="flex items-center gap-1.5 sm:gap-2 font-bold text-lg sm:text-xl text-brand-600 dark:text-brand-400">
+      <i data-lucide="graduation-cap" class="w-6 h-6 sm:w-7 sm:h-7"></i>
+      EduDrive
+    </a>
+
+    <div class="hidden md:flex items-center gap-6 text-sm font-medium">
+      <a href="{% url 'home' %}" class="hover:text-brand-600 dark:hover:text-brand-400 transition">Bosh sahifa</a>
+      {% if user.is_authenticated %}
+        <a href="{% url 'leaderboard' %}" class="hover:text-brand-600 dark:hover:text-brand-400 transition">Reyting</a>
+        <a href="{% url 'upload_resource' %}" class="hover:text-brand-600 dark:hover:text-brand-400 transition">Yuklash</a>
+        <a href="{% url 'profile' %}" class="hover:text-brand-600 dark:hover:text-brand-400 transition">Profil</a>
+        {% if user.is_staff %}
+        <a href="{% url 'moderation_dashboard' %}" class="hover:text-brand-600 dark:hover:text-brand-400 transition flex items-center gap-1">
+          <i data-lucide="shield-check" class="w-4 h-4"></i> Moderatsiya
+          <span id="moderation-badge" class="bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center {% if not pending_moderation_count %}hidden{% endif %}">{{ pending_moderation_count|default:0 }}</span>
+        </a>
+        {% endif %}
+      {% else %}
+        <a href="{% url 'leaderboard' %}" class="hover:text-brand-600 dark:hover:text-brand-400 transition">Reyting</a>
+      {% endif %}
+    </div>
+
+    <div class="flex items-center gap-1.5 sm:gap-3">
+      {% if user.is_authenticated %}
+      <div class="relative">
+        <button id="bell-btn" class="p-1.5 sm:p-2 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition relative">
+          <i data-lucide="bell" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+          <span id="bell-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center"></span>
+        </button>
+        <div id="bell-dropdown" class="hidden absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto glass rounded-2xl shadow-xl p-3 z-50">
+          <p class="text-sm font-bold px-2 pb-2">Bildirishnomalar</p>
+          <div id="bell-list" class="space-y-1"></div>
+        </div>
+      </div>
+      {% endif %}
+      <button id="theme-toggle" class="p-1.5 sm:p-2 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition">
+        <i data-lucide="sun-moon" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+      </button>
+      {% if user.is_authenticated %}
+        <span class="hidden sm:inline text-sm font-semibold text-brand-600 dark:text-brand-400">
+          {{ user.points }} <i data-lucide="star" class="w-4 h-4 inline"></i>
+        </span>
+        <a href="{% url 'logout' %}" class="px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gray-200/60 dark:bg-gray-800/60 hover:bg-gray-300/60 dark:hover:bg-gray-700/60 transition text-xs sm:text-sm font-medium whitespace-nowrap">
+          Chiqish
+        </a>
+      {% else %}
+        <a href="{% url 'login' %}" class="px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gray-200/60 dark:bg-gray-800/60 hover:bg-gray-300/60 transition text-xs sm:text-sm font-medium whitespace-nowrap">Kirish</a>
+        <a href="{% url 'register' %}" class="px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition text-xs sm:text-sm font-medium whitespace-nowrap">
+          <span class="hidden xs:inline sm:inline">Ro'yxatdan o'tish</span>
+          <span class="inline xs:hidden sm:hidden">Ro'yxat</span>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+{% if messages %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 mt-4 space-y-2">
+  {% for message in messages %}
+    <div class="glass rounded-xl px-4 py-3 text-sm font-medium border-l-4
+      {% if message.tags == 'success' %} border-green-500 text-green-700 dark:text-green-400
+      {% elif message.tags == 'error' %} border-red-500 text-red-700 dark:text-red-400
+      {% else %} border-blue-500 text-blue-700 dark:text-blue-400 {% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 animate-[fadeIn_0.4s_ease-in-out]">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="mt-16 py-8 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200/50 dark:border-gray-800/50">
+  &copy; {% now "Y" %} EduDrive — Talabalar va o'quvchilar uchun bilim maskani.
+</footer>
+
+<script>
+  lucide.createIcons();
+
+  const themeToggle = document.getElementById('theme-toggle');
+  const root = document.documentElement;
+
+  if (localStorage.getItem('theme') === 'dark' ||
+     (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    root.classList.add('dark');
+  }
+
+  themeToggle.addEventListener('click', () => {
+    root.classList.toggle('dark');
+    localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light');
+  });
+
+  {% if user.is_authenticated %}
+  const bellBtn = document.getElementById('bell-btn');
+  const bellDropdown = document.getElementById('bell-dropdown');
+  const bellBadge = document.getElementById('bell-badge');
+  const bellList = document.getElementById('bell-list');
+
+  async function loadNotifications() {
+    try {
+      const res = await fetch("{% url 'notifications_dropdown' %}");
+      const data = await res.json();
+      if (data.unread_count > 0) {
+        bellBadge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
+        bellBadge.classList.remove('hidden');
+      } else {
+        bellBadge.classList.add('hidden');
+      }
+      bellList.innerHTML = data.notifications.length ? data.notifications.map(n => `
+        <a href="${n.link || '#'}" class="block p-2 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 transition ${n.is_read ? 'opacity-60' : ''}">
+          <p class="text-sm font-semibold">${n.title}</p>
+          <p class="text-xs text-gray-400 line-clamp-2">${n.message}</p>
+          <p class="text-[10px] text-gray-400 mt-1">${n.created_at}</p>
+        </a>
+      `).join('') : '<p class="text-sm text-gray-400 p-2">Bildirishnomalar yo\'q.</p>';
+    } catch (e) { /* jim */ }
+  }
+
+  bellBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    bellDropdown.classList.toggle('hidden');
+    if (!bellDropdown.classList.contains('hidden')) {
+      await loadNotifications();
+      fetch("{% url 'notifications_mark_read' %}", {
+        method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+      }).then(() => bellBadge.classList.add('hidden'));
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (!bellDropdown.contains(e.target) && e.target !== bellBtn) bellDropdown.classList.add('hidden');
+  });
+  loadNotifications();
+  setInterval(loadNotifications, 30000);
+  {% endif %}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
