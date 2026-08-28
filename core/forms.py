@@ -6,6 +6,7 @@ Ro'yxatdan o'tish, kirish, fayl yuklash va sharh qoldirish uchun formalar.
 import io
 import random
 from django import forms
+from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.core.files.base import ContentFile
 from django.utils import timezone
@@ -14,6 +15,7 @@ from django.utils.text import slugify
 from .models import CustomUser, Resource, Review, Category
 from .file_utils import sniff_file_type
 
+User = get_user_model()
 
 INPUT_CLASSES = (
     "w-full rounded-xl border border-gray-300 dark:border-gray-700 "
@@ -23,27 +25,47 @@ INPUT_CLASSES = (
 
 
 class RegisterForm(UserCreationForm):
-    email = forms.EmailField(required=True)
+    email = forms.EmailField(
+        required=True,
+        label="E-mail pochta",
+        widget=forms.EmailInput(attrs={"placeholder": "example@mail.com"})
+    )
     telegram_id = forms.CharField(
         required=False,
-        help_text="Ixtiyoriy: Telegram ID'ingizni kiriting yoki keyinroq botdan OTP orqali ulang."
+        label="Telegram ID",
+        help_text="Ixtiyoriy: Telegram ID'ingizni kiriting.",
+        widget=forms.TextInput(attrs={"placeholder": " Masalan: 12345678"})
     )
 
-    class Meta:
-        model = CustomUser
-        fields = ["username", "email", "password1", "password2"]
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ["username", "email"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
+        for name, field in self.fields.items():
             field.widget.attrs.update({"class": INPUT_CLASSES})
+            if name == "username":
+                field.widget.attrs.update({"placeholder": "Foydalanuvchi nomi"})
+
+    def clean_username(self):
+        username = self.cleaned_data.get("username")
+        if User.objects.filter(username=username).exists():
+            raise forms.ValidationError("Ushbu foydalanuvchi nomi (username) allaqachon band.")
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if User.objects.filter(email=email).exists():
+            raise forms.ValidationError("Ushbu e-mail pochta bilan allaqachon ro'yxatdan o'tilgan.")
+        return email
 
     def clean_telegram_id(self):
         tg_id = self.cleaned_data.get("telegram_id")
         if tg_id:
             if not tg_id.isdigit():
                 raise forms.ValidationError("Telegram ID faqat raqamlardan iborat bo'lishi kerak.")
-            if CustomUser.objects.filter(telegram_id=tg_id).exists():
+            if User.objects.filter(telegram_id=tg_id).exists():
                 raise forms.ValidationError("Bu Telegram ID allaqachon boshqa hisobga ulangan.")
         return tg_id
 
@@ -69,7 +91,6 @@ class LoginForm(forms.Form):
 
 
 class TelegramLinkForm(forms.Form):
-    """Web-saytda mavjud foydalanuvchi hisobini Telegram bilan OTP orqali bog'lash uchun."""
     otp_code = forms.CharField(max_length=6, min_length=6)
 
     def clean_otp_code(self):
@@ -128,19 +149,10 @@ class ResourceUploadForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Modelda ba'zi maydonlar (description, file) admin panel uchun
-        # ixtiyoriy (blank=True) qilib belgilangan, lekin ODDIY FOYDALANUVCHI
-        # yuklash formasida hech biri tashlab ketilmasligi kerak.
         self.fields["title"].required = True
         self.fields["description"].required = True
         self.fields["file"].required = True
-        # Kategoriya maydoni ixtiyoriy — chunki foydalanuvchi ro'yxatdan
-        # tanlash o'rniga new_category orqali yangisini yozishi mumkin.
         self.fields["category"].required = False
-
-        # Barcha kategoriyalar (pastki kategoriyalar bilan birga) chiqishi,
-        # va ierarxiya aniq ko'rinishi uchun ("Ota → Bola") label_from_instance'ni
-        # o'zgartiramiz.
         self.fields["category"].queryset = Category.objects.all().select_related("parent_category")
         self.fields["category"].label_from_instance = lambda obj: str(obj)
 
@@ -197,7 +209,7 @@ class ResourceUploadForm(forms.ModelForm):
             ext_from_name = resource.file.name.split(".")[-1].lower()
             resource.file.seek(0)
             head = resource.file.read()
-            resource.file.seek(0)  # o'qishdan keyin boshiga qaytaramiz — saqlash uchun kerak
+            resource.file.seek(0)
             resource.file_type = sniff_file_type(head, fallback_ext=ext_from_name)
 
         if commit:
@@ -207,15 +219,10 @@ class ResourceUploadForm(forms.ModelForm):
         return resource
 
 
-DEMO_PREVIEW_PAGES = 5  # yuklab olmasdan ko'rish uchun ochiladigan sahifalar soni
+DEMO_PREVIEW_PAGES = 5
 
 
 def generate_pdf_preview(resource: Resource) -> bool:
-    """
-    PDF materialning birinchi DEMO_PREVIEW_PAGES sahifasidan iborat kichik
-    "demo" fayl yaratadi. Muvaffaqiyatli bo'lsa True, aks holda False qaytaradi
-    (masalan, fayl haqiqatda PDF bo'lmasa yoki buzilgan bo'lsa).
-    """
     try:
         from pypdf import PdfReader, PdfWriter
     except ImportError:
@@ -226,7 +233,6 @@ def generate_pdf_preview(resource: Resource) -> bool:
         data = resource.file.read()
 
         if not data.startswith(b"%PDF"):
-            # Fayl kengaytmasi "pdf" bo'lsa-da, haqiqiy mazmuni PDF emas
             return False
 
         reader = PdfReader(io.BytesIO(data))
@@ -245,8 +251,6 @@ def generate_pdf_preview(resource: Resource) -> bool:
         )
         return True
     except Exception:
-        # PDF buzilgan yoki himoyalangan bo'lsa, demo-previewsiz qoldiramiz —
-        # foydalanuvchi baribir to'liq faylni yuklab ola oladi.
         return False
     finally:
         resource.file.close()

@@ -6,7 +6,6 @@ Bu modul chaqirilishidan oldin bot/main.py da django.setup() bajarilgan bo'lishi
 """
 
 from asgiref.sync import sync_to_async
-from django.utils import timezone
 from django.utils.text import slugify
 
 from core.models import CustomUser, Category, Resource, Notification
@@ -90,7 +89,10 @@ def get_approved_resources_by_category(category_id: int, page: int = 1, page_siz
 
 @sync_to_async
 def get_resource_by_id(resource_id: int):
-    return Resource.objects.filter(id=resource_id).first()
+    resource = Resource.objects.filter(id=resource_id).first()
+    if resource:
+        resource.cached_rating = resource.average_rating
+    return resource
 
 
 @sync_to_async
@@ -124,11 +126,8 @@ def set_resource_status(resource_id: int, approve: bool, reason: str = ""):
     if not resource:
         return None, False
 
-    # Bazadan HAR SAFAR qayta tekshiramiz: agar material allaqachon
-    # tasdiqlangan/rad etilgan bo'lsa (masalan, saytdan allaqachon
-    # bajarilgan bo'lsa), qayta ball/bildirishnoma berilmasin.
     if resource.status != Resource.Status.PENDING:
-        return resource, True  # already_processed=True
+        return resource, True
 
     if approve:
         resource.approve()
@@ -138,7 +137,7 @@ def set_resource_status(resource_id: int, approve: bool, reason: str = ""):
                 user=resource.uploaded_by,
                 title="Materialingiz tasdiqlandi ✅",
                 message=f"'{resource.title}' materiali endi barchaga ko'rinadi. +5 ball qo'shildi!",
-                sent_via_bot=True,  # Bot orqali bajarilgani uchun, botga qayta yuborilmasin
+                sent_via_bot=True,
             )
     else:
         resource.reject(reason)
@@ -191,7 +190,7 @@ def get_pending_resources(limit: int = 10):
 
 @sync_to_async
 def notify_staff_new_pending_resource(resource):
-    """Bot orqali yangi material yuklanganda, saytdagi moderatorlarga (bell orqali) ham bildirishnoma yaratadi."""
+    """Bot orqali yangi material yuklanganda, saytdagi moderatorlarga ham bildirishnoma yaratadi."""
     from django.urls import reverse
     staff_users = CustomUser.objects.filter(is_staff=True)
     for staff_user in staff_users:
@@ -213,7 +212,7 @@ def get_unread_notifications(telegram_id: int):
 
 
 # ---------------------------------------------------------------------------
-# QIDIRUV, REYTING, KUNLIK MATERIAL, SAQLANGANLAR (bot uchun qo'shimcha funksiyalar)
+# QIDIRUV, REYTING, KUNLIK MATERIAL, SAQLANGANLAR
 # ---------------------------------------------------------------------------
 @sync_to_async
 def search_resources(query: str, limit: int = 8):
@@ -239,7 +238,10 @@ def get_daily_resource():
     if not ids:
         return None
     seed = int(hashlib.md5(str(date.today()).encode()).hexdigest(), 16)
-    return Resource.objects.get(id=ids[seed % len(ids)])
+    resource = Resource.objects.get(id=ids[seed % len(ids)])
+    if resource:
+        resource.cached_rating = resource.average_rating
+    return resource
 
 
 @sync_to_async

@@ -1,21 +1,6 @@
 """
 bot/main.py
 EduDrive Aiogram 3.x botining kirish nuqtasi.
-
-MUHIM: Bot Django modellariga bevosita murojaat qilishi uchun,
-Django sozlamalari ishga tushirilishidan oldin DJANGO_SETTINGS_MODULE
-o'rnatilib, django.setup() chaqirilishi shart. Shu tufayli bu skript
-loyihaning ROOT papkasidan quyidagicha ishga tushiriladi:
-
-    python -m bot.main
-
-.env fayli quyidagi o'zgaruvchilarni o'z ichiga olishi kerak:
-    BOT_TOKEN=...
-    ADMIN_GROUP_ID=-100...
-    WEBAPP_URL=https://sizning-domain.uz/
-    SITE_URL=https://sizning-domain.uz
-    BOT_USERNAME=EduDriveBot
-    DJANGO_SETTINGS_MODULE=edudrive.settings
 """
 
 import asyncio
@@ -28,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ---------------------------------------------------------------------------
-# DJANGO SOZLAMALARINI ISHGA TUSHIRISH (bot va sayt bitta bazani ishlatishi uchun)
+# DJANGO SOZLAMALARINI ISHGA TUSHIRISH
 # ---------------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", os.environ.get("DJANGO_SETTINGS_MODULE", "edudrive.settings"))
@@ -52,11 +37,6 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 
 # ---------------------------------------------------------------------------
 # BROADCAST NOTIFICATION LOGIC
-# Django Admin-panelida yangi e'lon (Notification, user=None maxsus signal)
-# yaratilganda, bu background task barcha ulangan foydalanuvchilarga
-# bildirishnoma yuborishi uchun signal handler bilan birga ishlaydi.
-# Bu yerda -- Django signals (core/signals.py) orqali chaqiriladigan
-# funksiya sifatida ham ishlatilishi mumkin.
 # ---------------------------------------------------------------------------
 async def broadcast_message(bot: Bot, title: str, message: str):
     telegram_ids = await db.get_all_telegram_linked_user_ids()
@@ -67,20 +47,15 @@ async def broadcast_message(bot: Bot, title: str, message: str):
         try:
             await bot.send_message(tg_id, text)
             sent += 1
-        except Exception as exc:  # foydalanuvchi botni bloklagan bo'lishi mumkin
+        except Exception as exc:
             logger.warning("Broadcast xatosi (user %s): %s", tg_id, exc)
             failed += 1
-        await asyncio.sleep(0.05)  # Telegram flood-limitidan qochish uchun
+        await asyncio.sleep(0.05)
 
     logger.info("Broadcast yakunlandi: %s ta yuborildi, %s ta muvaffaqiyatsiz.", sent, failed)
 
 
 async def periodic_broadcast_listener(bot: Bot):
-    """
-    Django admin-panelida yaratilgan, hali botga yuborilmagan (sent_via_bot=False,
-    user=None -> umumiy e'lon) bildirishnomalarni har 15 soniyada tekshirib,
-    barcha foydalanuvchilarga jo'natadi.
-    """
     from asgiref.sync import sync_to_async
     from core.models import Notification
 
@@ -105,13 +80,6 @@ async def periodic_broadcast_listener(bot: Bot):
 
 
 async def periodic_personal_notification_listener(bot: Bot):
-    """
-    Saytda (web moderatsiya, ball berish, sharh va h.k.) yaratilgan SHAXSIY
-    bildirishnomalarni (user belgilangan, hali botga yuborilmagan) har 10
-    soniyada tekshirib, agar foydalanuvchi Telegram'ga ulangan bo'lsa —
-    to'g'ridan-to'g'ri botdan xabar yuboradi. Shu orqali bot va sayt bir xil
-    bildirishnoma tizimini ishlatadi (sayt bell'i = bot xabari).
-    """
     from asgiref.sync import sync_to_async
     from core.models import Notification
 
@@ -154,7 +122,6 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(router)
 
-    # Broadcast va shaxsiy bildirishnomalar uchun background tasklar
     asyncio.create_task(periodic_broadcast_listener(bot))
     asyncio.create_task(periodic_personal_notification_listener(bot))
 

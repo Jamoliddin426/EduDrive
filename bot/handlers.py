@@ -16,8 +16,7 @@ from aiogram.filters import Command, CommandObject, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
-    Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton,
-    WebAppInfo,
+    Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 )
 
 from . import db_queries as db
@@ -25,12 +24,12 @@ from . import db_queries as db
 router = Router()
 
 ADMIN_GROUP_ID = int(os.environ.get("ADMIN_GROUP_ID", "0"))
-WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://example.com")
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "http://127.0.0.1:8000/")
 PAGE_SIZE = 6
 
 
 # ---------------------------------------------------------------------------
-# FSM STATES (Fayl yuborish jarayoni)
+# FSM STATES
 # ---------------------------------------------------------------------------
 class UploadStates(StatesGroup):
     waiting_for_file = State()
@@ -54,7 +53,6 @@ async def cmd_start(message: Message, command: CommandObject):
         full_name=message.from_user.full_name or "",
     )
 
-    # /start get_<resource_id> - saytdan bot orqali yuklab olish uchun deep-link
     if command.args and command.args.startswith("get_"):
         resource_id = command.args.replace("get_", "")
         if resource_id.isdigit():
@@ -82,14 +80,14 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
         ],
         [InlineKeyboardButton(text="📤 Material yuborish", callback_data="upload:start")],
         [InlineKeyboardButton(
-            text="🌐 EduDrive Portal (WebApp)",
-            web_app=WebAppInfo(url=WEBAPP_URL)
+            text="🌐 EduDrive Portal",
+            url=WEBAPP_URL  # web_app=WebAppInfo(...) o'rniga oddiy url= ishlatildi (HTTP brauzerda ochiladi)
         )],
     ])
 
 
 # ---------------------------------------------------------------------------
-# /link <otp_code> - hisoblarni bog'lash
+# /link <otp_code>
 # ---------------------------------------------------------------------------
 @router.message(Command("link"))
 async def cmd_link(message: Message, command: CommandObject):
@@ -111,22 +109,14 @@ async def cmd_link(message: Message, command: CommandObject):
 
 
 # ---------------------------------------------------------------------------
-# /admin - Telegram orqali moderatsiya (faqat is_staff foydalanuvchilar uchun)
+# /admin
 # ---------------------------------------------------------------------------
 @router.message(Command("admin"))
 async def cmd_admin(message: Message):
-    """
-    /admin buyrug'i yuborilganda:
-    - Agar foydalanuvchi (Telegram hisobi ulangan va) is_staff=True bo'lsa —
-      "Xush kelibsiz" bilan kutayotgan materiallar ro'yxati va
-      Tasdiqlash/Rad etish tugmalari chiqadi.
-    - Aks holda (oddiy foydalanuvchi) — bot HECH QANDAY javob bermaydi
-      (moderatsiya paneli borligi haqida ma'lumot berilmaydi).
-    """
     user = await db.get_user_by_telegram_id(message.from_user.id)
 
     if not user or not user.is_staff:
-        return  # Oddiy foydalanuvchiga sukut — hech narsa yubormaymiz
+        return
 
     pending = await db.get_pending_resources(limit=10)
 
@@ -156,7 +146,7 @@ async def cmd_admin(message: Message):
 
 
 # ---------------------------------------------------------------------------
-# KATEGORIYALAR VA FAYLLAR KATALOGI (Inline Pagination)
+# KATEGORIYALAR VA FAYLLAR KATALOGI
 # ---------------------------------------------------------------------------
 @router.callback_query(F.data.startswith("categories:"))
 async def show_categories(callback: CallbackQuery):
@@ -225,10 +215,12 @@ async def show_resource_detail(callback: CallbackQuery):
         await callback.answer("Material topilmadi.", show_alert=True)
         return
 
+    rating = getattr(resource, "cached_rating", 0.0)
+
     text = (
         f"<b>{resource.title}</b>\n\n"
         f"{resource.description or 'Tavsif kiritilmagan.'}\n\n"
-        f"⬇️ {resource.download_count} marta yuklangan | ⭐ {resource.average_rating}"
+        f"⬇️ {resource.download_count} marta yuklangan | ⭐ {rating}"
     )
     buttons = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="⬇️ Yuklab olish", callback_data=f"download:{resource.id}")],
@@ -259,12 +251,6 @@ async def bookmark_toggle_callback(callback: CallbackQuery):
 
 
 async def send_resource_file(message: Message, resource_id: int):
-    """
-    Fayl caching logikasi:
-    Agar telegram_file_id mavjud bo'lsa, Telegram serveridan lahzada yuboriladi
-    (bizning serverimizga umuman tegilmaydi). Aks holda, foydalanuvchiga
-    web-saytdagi yuklab olish havolasi taklif etiladi.
-    """
     resource = await db.get_resource_by_id(resource_id)
     if not resource:
         await message.answer("❌ Material topilmadi.")
@@ -278,14 +264,14 @@ async def send_resource_file(message: Message, resource_id: int):
             caption=f"📄 {resource.title}",
         )
     else:
-        site_url = os.environ.get("SITE_URL", "https://example.com")
+        site_url = os.environ.get("SITE_URL", "http://127.0.0.1:8000/")
         await message.answer(
             f"Faylni bu havoladan yuklab oling:\n{site_url}/resource/{resource.slug}/download/"
         )
 
 
 # ---------------------------------------------------------------------------
-# FAYL YUBORISH FSM (Bosqichma-bosqich)
+# FAYL YUBORISH FSM
 # ---------------------------------------------------------------------------
 @router.callback_query(F.data == "upload:start")
 async def upload_start(callback: CallbackQuery, state: FSMContext):
@@ -360,10 +346,8 @@ async def upload_receive_description(message: Message, state: FSMContext, bot: B
         "Admin tasdiqlagach, u sayt va botda barchaga ko'rinadi."
     )
 
-    # Saytdagi moderatorlarga ham bell orqali bildirishnoma (sayt bilan bir xil tizim)
     await db.notify_staff_new_pending_resource(resource)
 
-    # Admin guruhga moderatsiya so'rovini yuborish
     if ADMIN_GROUP_ID:
         admin_buttons = InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"moderate:approve:{resource.id}"),
@@ -379,7 +363,7 @@ async def upload_receive_description(message: Message, state: FSMContext, bot: B
 
 
 # ---------------------------------------------------------------------------
-# ADMIN MODERATSIYA (Telegram Admin Group)
+# ADMIN MODERATSIYA
 # ---------------------------------------------------------------------------
 @router.callback_query(F.data.startswith("moderate:"))
 async def moderate_resource(callback: CallbackQuery, bot: Bot):
@@ -392,8 +376,6 @@ async def moderate_resource(callback: CallbackQuery, bot: Bot):
         return
 
     if already_processed:
-        # Material allaqachon saytdan (yoki boshqa admin tomonidan) ko'rib
-        # chiqilgan — qayta ball/bildirishnoma berilmaydi, faqat xabar beramiz.
         current_status = "✅ Tasdiqlangan" if resource.status == "approved" else "❌ Rad etilgan"
         await callback.message.edit_text(
             f"{callback.message.html_text}\n\n<i>ℹ️ Bu material allaqachon ko'rib chiqilgan ({current_status}).</i>"
@@ -404,7 +386,6 @@ async def moderate_resource(callback: CallbackQuery, bot: Bot):
     status_text = "✅ Tasdiqlandi" if action == "approve" else "❌ Rad etildi"
     await callback.message.edit_text(f"{callback.message.html_text}\n\n<b>{status_text}</b>")
 
-    # Foydalanuvchiga bildirishnoma yuborish
     if resource.uploaded_by and resource.uploaded_by.telegram_id:
         bonus_text = " (+5 ball qo'shildi!)" if action == "approve" else ""
         text = f"Materialingiz <b>{resource.title}</b> {status_text.lower()}.{bonus_text}"
@@ -414,7 +395,7 @@ async def moderate_resource(callback: CallbackQuery, bot: Bot):
 
 
 # ---------------------------------------------------------------------------
-# QIDIRUV (FSM - bosqichsiz, faqat bitta so'rov)
+# QIDIRUV
 # ---------------------------------------------------------------------------
 @router.callback_query(F.data == "search:start")
 async def search_start(callback: CallbackQuery, state: FSMContext):
@@ -480,10 +461,12 @@ async def daily_resource_show(callback: CallbackQuery):
         await callback.answer("Hozircha materiallar yo'q.", show_alert=True)
         return
 
+    rating = getattr(resource, "cached_rating", 0.0)
+
     text = (
         f"✨ <b>Bugungi kun materiali</b>\n\n"
         f"<b>{resource.title}</b>\n{resource.description or ''}\n\n"
-        f"⬇️ {resource.download_count} marta yuklangan | ⭐ {resource.average_rating}"
+        f"⬇️ {resource.download_count} marta yuklangan | ⭐ {rating}"
     )
     buttons = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="⬇️ Yuklab olish", callback_data=f"download:{resource.id}")],

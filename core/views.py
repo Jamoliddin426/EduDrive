@@ -47,8 +47,11 @@ def register_view(request):
             user.check_daily_streak()
             messages.success(request, "Xush kelibsiz! Ro'yxatdan muvaffaqiyatli o'tdingiz.")
             return redirect("home")
+        else:
+            messages.error(request, "Iltimos, shakldagi xatoliklarni to'g'rilang.")
     else:
         form = RegisterForm()
+        
     return render(request, "register.html", {"form": form})
 
 

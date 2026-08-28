@@ -44,18 +44,27 @@
         <p class="text-sm text-gray-400 mt-1">Bir necha qadamda tayyor</p>
       </div>
 
-      <form method="post" class="space-y-4">
+      <form method="post" class="space-y-4" novalidate>
         {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs space-y-1">
+            {% for error in form.non_field_errors %}
+              <p class="flex items-center gap-1.5"><i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i> {{ error }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+
         {% for field in form %}
           <div>
-            <label class="block text-sm font-medium mb-1.5">{{ field.label }}</label>
+            <label class="block text-sm font-medium mb-1.5" for="{{ field.id_for_label }}">{{ field.label }}</label>
             {{ field }}
             {% if field.help_text %}
               <p class="text-xs text-gray-400 mt-1">{{ field.help_text }}</p>
             {% endif %}
             {% for error in field.errors %}
               <p class="flex items-center gap-1.5 text-red-500 text-xs mt-1.5">
-                <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> {{ error }}
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0"></i> {{ error }}
               </p>
             {% endfor %}
           </div>
