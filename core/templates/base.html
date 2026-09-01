@@ -118,7 +118,36 @@
           <span class="inline xs:hidden sm:hidden">Ro'yxat</span>
         </a>
       {% endif %}
+      <button id="mobile-menu-btn" class="md:hidden p-1.5 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
     </div>
+  </div>
+
+  <!-- Mobil menyu (telefonda navbar o'rtasidagi havolalar shu yerda ko'rinadi) -->
+  <div id="mobile-menu" class="hidden md:hidden border-t border-gray-200/50 dark:border-gray-700/50 px-4 py-3 space-y-1">
+    <a href="{% url 'home' %}" class="block px-3 py-2.5 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 font-medium transition">
+      <i data-lucide="home" class="w-4 h-4 inline mr-2"></i> Bosh sahifa
+    </a>
+    <a href="{% url 'leaderboard' %}" class="block px-3 py-2.5 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 font-medium transition">
+      <i data-lucide="trophy" class="w-4 h-4 inline mr-2"></i> Reyting
+    </a>
+    {% if user.is_authenticated %}
+    <a href="{% url 'upload_resource' %}" class="block px-3 py-2.5 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 font-medium transition">
+      <i data-lucide="upload-cloud" class="w-4 h-4 inline mr-2"></i> Yuklash
+    </a>
+    <a href="{% url 'profile' %}" class="block px-3 py-2.5 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 font-medium transition">
+      <i data-lucide="user" class="w-4 h-4 inline mr-2"></i> Profil
+    </a>
+    {% if user.is_staff %}
+    <a href="{% url 'moderation_dashboard' %}" class="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 font-medium transition">
+      <span><i data-lucide="shield-check" class="w-4 h-4 inline mr-2"></i> Moderatsiya</span>
+      {% if pending_moderation_count %}
+      <span class="bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{{ pending_moderation_count }}</span>
+      {% endif %}
+    </a>
+    {% endif %}
+    {% endif %}
   </div>
 </nav>
 
@@ -158,6 +187,17 @@
     root.classList.toggle('dark');
     localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light');
   });
+
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', () => {
+      mobileMenu.classList.toggle('hidden');
+      const icon = mobileMenuBtn.querySelector('i');
+      icon.setAttribute('data-lucide', mobileMenu.classList.contains('hidden') ? 'menu' : 'x');
+      lucide.createIcons();
+    });
+  }
 
   {% if user.is_authenticated %}
   const bellBtn = document.getElementById('bell-btn');
