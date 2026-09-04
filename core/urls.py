@@ -24,10 +24,13 @@ urlpatterns = [
     path("resource/<slug:slug>/preview/zip/<path:entry_name>/", views.resource_preview_zip_entry_view, name="resource_preview_zip_entry"),
     path("resource/<slug:slug>/bookmark/", views.toggle_bookmark_view, name="toggle_bookmark"),
     path("resource/<slug:slug>/moderate/", views.moderate_resource_view, name="moderate_resource"),
+    path("resource/<slug:slug>/edit/", views.resource_edit_view, name="resource_edit"),
+    path("resource/<slug:slug>/delete/", views.resource_delete_view, name="resource_delete"),
 
     # Upload & Profile
     path("upload/", views.upload_resource_view, name="upload_resource"),
     path("profile/", views.profile_view, name="profile"),
+    path("profile/reset-avatar/", views.reset_avatar_view, name="reset_avatar"),
 
     # Extra features
     path("leaderboard/", views.leaderboard_view, name="leaderboard"),

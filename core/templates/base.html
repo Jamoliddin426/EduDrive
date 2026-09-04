@@ -50,6 +50,10 @@
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-thumb { background: #a5b4fc; border-radius: 8px; }
 
+  /* Bildirishnoma paneli kabi joylarda qalin/g'alati skrollbar chiqmasligi uchun */
+  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
   /* 5 yulduzli interaktiv reyting (radio inputlar yashirin, label'lar yulduz) */
   .star-rating input { position: absolute; opacity: 0; width: 0; height: 0; }
   .star-rating label {
@@ -95,7 +99,7 @@
           <i data-lucide="bell" class="w-4 h-4 sm:w-5 sm:h-5"></i>
           <span id="bell-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center"></span>
         </button>
-        <div id="bell-dropdown" class="hidden absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto glass rounded-2xl shadow-xl p-3 z-50">
+        <div id="bell-dropdown" class="hidden fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 sm:w-80 max-h-96 overflow-y-auto no-scrollbar bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50 rounded-2xl shadow-2xl p-3 z-50">
           <p class="text-sm font-bold px-2 pb-2">Bildirishnomalar</p>
           <div id="bell-list" class="space-y-1"></div>
         </div>
@@ -118,7 +122,36 @@
           <span class="inline xs:hidden sm:hidden">Ro'yxat</span>
         </a>
       {% endif %}
+      <button id="mobile-menu-btn" class="md:hidden p-1.5 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-800/50 transition">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
     </div>
+  </div>
+
+  <!-- Mobil menyu (telefonda navbar o'rtasidagi havolalar shu yerda ko'rinadi) -->
+  <div id="mobile-menu" class="hidden md:hidden border-t border-gray-200/50 dark:border-gray-700/50 px-4 py-3 space-y-1">
+    <a href="{% url 'home' %}" class="block px-3 py-2.5 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 font-medium transition">
+      <i data-lucide="home" class="w-4 h-4 inline mr-2"></i> Bosh sahifa
+    </a>
+    <a href="{% url 'leaderboard' %}" class="block px-3 py-2.5 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 font-medium transition">
+      <i data-lucide="trophy" class="w-4 h-4 inline mr-2"></i> Reyting
+    </a>
+    {% if user.is_authenticated %}
+    <a href="{% url 'upload_resource' %}" class="block px-3 py-2.5 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 font-medium transition">
+      <i data-lucide="upload-cloud" class="w-4 h-4 inline mr-2"></i> Yuklash
+    </a>
+    <a href="{% url 'profile' %}" class="block px-3 py-2.5 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 font-medium transition">
+      <i data-lucide="user" class="w-4 h-4 inline mr-2"></i> Profil
+    </a>
+    {% if user.is_staff %}
+    <a href="{% url 'moderation_dashboard' %}" class="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-brand-50 dark:hover:bg-gray-800 font-medium transition">
+      <span><i data-lucide="shield-check" class="w-4 h-4 inline mr-2"></i> Moderatsiya</span>
+      {% if pending_moderation_count %}
+      <span class="bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{{ pending_moderation_count }}</span>
+      {% endif %}
+    </a>
+    {% endif %}
+    {% endif %}
   </div>
 </nav>
 
@@ -158,6 +191,17 @@
     root.classList.toggle('dark');
     localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light');
   });
+
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const mobileMenu = document.getElementById('mobile-menu');
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', () => {
+      mobileMenu.classList.toggle('hidden');
+      const icon = mobileMenuBtn.querySelector('i');
+      icon.setAttribute('data-lucide', mobileMenu.classList.contains('hidden') ? 'menu' : 'x');
+      lucide.createIcons();
+    });
+  }
 
   {% if user.is_authenticated %}
   const bellBtn = document.getElementById('bell-btn');

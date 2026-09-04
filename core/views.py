@@ -27,7 +27,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import (
     RegisterForm, LoginForm, TelegramLinkForm,
-    ResourceUploadForm, ReviewForm, SearchForm, ProfileEditForm,
+    ResourceUploadForm, ResourceEditForm, ReviewForm, SearchForm, ProfileEditForm,
 )
 from .models import CustomUser, Category, Resource, Review, Bookmark, Notification
 
@@ -47,11 +47,8 @@ def register_view(request):
             user.check_daily_streak()
             messages.success(request, "Xush kelibsiz! Ro'yxatdan muvaffaqiyatli o'tdingiz.")
             return redirect("home")
-        else:
-            messages.error(request, "Iltimos, shakldagi xatoliklarni to'g'rilang.")
     else:
         form = RegisterForm()
-        
     return render(request, "register.html", {"form": form})
 
 
@@ -515,6 +512,64 @@ def notify_staff_new_pending_resource(resource: Resource):
 # ---------------------------------------------------------------------------
 # PROFILE
 # ---------------------------------------------------------------------------
+@login_required
+def resource_edit_view(request, slug):
+    """Admin/moderator materialni saytda (Django admin'ga kirmasdan) tahrirlashi uchun."""
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Bu sahifaga faqat moderatorlar kira oladi.")
+
+    resource = get_object_or_404(Resource, slug=slug)
+
+    if request.method == "POST":
+        form = ResourceEditForm(request.POST, instance=resource)
+        if form.is_valid():
+            was_approved_before = resource.status == Resource.Status.APPROVED
+            # eski holatni saqlab qolamiz (ball ikki marta berilib ketmasligi uchun)
+            old_status = Resource.objects.get(pk=resource.pk).status
+
+            updated_resource = form.save()
+
+            if updated_resource.status == Resource.Status.APPROVED and old_status != Resource.Status.APPROVED:
+                updated_resource.uploaded_by.add_points(5)
+                Notification.objects.create(
+                    user=updated_resource.uploaded_by,
+                    title="Materialingiz tasdiqlandi ✅",
+                    message=f"'{updated_resource.title}' materiali endi barchaga ko'rinadi. +5 ball qo'shildi!",
+                    link=reverse("resource_detail", kwargs={"slug": updated_resource.slug}),
+                )
+
+            messages.success(request, "Material muvaffaqiyatli yangilandi!")
+            return redirect("resource_detail", slug=updated_resource.slug)
+    else:
+        form = ResourceEditForm(instance=resource)
+
+    return render(request, "resource_edit.html", {"form": form, "resource": resource})
+
+
+@login_required
+@require_POST
+def resource_delete_view(request, slug):
+    """Admin/moderator materialni saytda (Django admin'ga kirmasdan) o'chirishi uchun."""
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Bu sahifaga faqat moderatorlar kira oladi.")
+
+    resource = get_object_or_404(Resource, slug=slug)
+    title = resource.title
+    resource.delete()
+    messages.success(request, f"'{title}' materiali o'chirildi.")
+    return redirect("home")
+
+
+@login_required
+@require_POST
+def reset_avatar_view(request):
+    """Foydalanuvchi avatarini standart (default) rasmga qaytaradi."""
+    request.user.avatar = "avatars/default.png"
+    request.user.save(update_fields=["avatar"])
+    messages.success(request, "Avatar standart holatga qaytarildi.")
+    return redirect("profile")
+
+
 @login_required
 def profile_view(request):
     if request.method == "POST":
